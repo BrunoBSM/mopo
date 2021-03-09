@@ -96,6 +96,9 @@ class FlexibleReplayPool(ReplayPool):
             except:
                 import pdb
 
+                print(field_name)
+                print(values.shape)
+                print(self.fields[field_name].shape)
                 pdb.set_trace()
         self._advance(num_samples)
 
