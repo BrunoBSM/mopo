@@ -13,25 +13,21 @@ class SimpleSampler(BaseSampler):
         self._path_return = 0
         self._current_path = defaultdict(list)
         self._last_path_return = 0
-        self._max_path_return = -np.inf
+        self._max_path_return = -1.0
         self._n_episodes = 0
         self._current_observation = None
         self._total_samples = 0
 
-    def _process_observations(self,
-                              observation,
-                              action,
-                              reward,
-                              terminal,
-                              next_observation,
-                              info):
+    def _process_observations(
+        self, observation, action, reward, terminal, next_observation, info
+    ):
         processed_observation = {
-            'observations': observation,
-            'actions': action,
-            'rewards': [reward],
-            'terminals': [terminal],
-            'next_observations': next_observation,
-            'infos': info,
+            "observations": observation,
+            "actions": action,
+            "rewards": [reward],
+            "terminals": [terminal],
+            "next_observations": next_observation,
+            "infos": info,
         }
 
         return processed_observation
@@ -44,10 +40,9 @@ class SimpleSampler(BaseSampler):
                 self._reset_state_vector = self.env.unwrapped.state_vector()
             ####
 
-        action = self.policy.actions_np([
-            self.env.convert_to_active_observation(
-                self._current_observation)[None]
-        ])[0]
+        action = self.policy.actions_np(
+            [self.env.convert_to_active_observation(self._current_observation)[None]]
+        )[0]
 
         next_observation, reward, terminal, info = self.env.step(action)
         self._path_length += 1
@@ -74,8 +69,7 @@ class SimpleSampler(BaseSampler):
             self.pool.add_path(last_path)
             self._last_n_paths.appendleft(last_path)
 
-            self._max_path_return = max(self._max_path_return,
-                                        self._path_return)
+            self._max_path_return = max(self._max_path_return, self._path_return)
             self._last_path_return = self._path_return
 
             self.policy.reset()
@@ -92,18 +86,21 @@ class SimpleSampler(BaseSampler):
 
     def random_batch(self, batch_size=None, **kwargs):
         batch_size = batch_size or self._batch_size
-        observation_keys = getattr(self.env, 'observation_keys', None)
+        observation_keys = getattr(self.env, "observation_keys", None)
 
         return self.pool.random_batch(
-            batch_size, observation_keys=observation_keys, **kwargs)
+            batch_size, observation_keys=observation_keys, **kwargs
+        )
 
     def get_diagnostics(self):
         diagnostics = super(SimpleSampler, self).get_diagnostics()
-        diagnostics.update({
-            'max-path-return': self._max_path_return,
-            'last-path-return': self._last_path_return,
-            'episodes': self._n_episodes,
-            'total-samples': self._total_samples,
-        })
+        diagnostics.update(
+            {
+                "max-path-return": self._max_path_return,
+                "last-path-return": self._last_path_return,
+                "episodes": self._n_episodes,
+                "total-samples": self._total_samples,
+            }
+        )
 
         return diagnostics

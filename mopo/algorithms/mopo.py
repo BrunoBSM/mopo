@@ -34,55 +34,52 @@ class MOPO(RLAlgorithm):
 
     References
     ----------
-        Tianhe Yu, Garrett Thomas, Lantao Yu, Stefano Ermon, James Zou, Sergey Levine, Chelsea Finn, Tengyu Ma. 
-        MOPO: Model-based Offline Policy Optimization. 
+        Tianhe Yu, Garrett Thomas, Lantao Yu, Stefano Ermon, James Zou, Sergey Levine, Chelsea Finn, Tengyu Ma.
+        MOPO: Model-based Offline Policy Optimization.
         arXiv preprint arXiv:2005.13239. 2020.
     """
 
     def __init__(
-            self,
-            training_environment,
-            evaluation_environment,
-            policy,
-            Qs,
-            pool,
-            static_fns,
-            plotter=None,
-            tf_summaries=False,
-
-            lr=3e-4,
-            reward_scale=1.0,
-            target_entropy='auto',
-            discount=0.99,
-            tau=5e-3,
-            target_update_interval=1,
-            action_prior='uniform',
-            reparameterize=False,
-            store_extra_policy_info=False,
-
-            deterministic=False,
-            rollout_random=False,
-            model_train_freq=250,
-            num_networks=7,
-            num_elites=5,
-            model_retain_epochs=20,
-            rollout_batch_size=100e3,
-            real_ratio=0.1,
-            # rollout_schedule=[20,100,1,1],
-            rollout_length=1,
-            hidden_dim=200,
-            max_model_t=None,
-            model_type='mlp',
-            separate_mean_var=False,
-            identity_terminal=0,
-
-            pool_load_path='',
-            pool_load_max_size=0,
-            model_name=None,
-            model_load_dir=None,
-            penalty_coeff=0.,
-            penalty_learned_var=False,
-            **kwargs,
+        self,
+        training_environment,
+        evaluation_environment,
+        policy,
+        Qs,
+        pool,
+        static_fns,
+        plotter=None,
+        tf_summaries=False,
+        lr=3e-4,
+        reward_scale=1.0,
+        target_entropy="auto",
+        discount=0.99,
+        tau=5e-3,
+        target_update_interval=1,
+        action_prior="uniform",
+        reparameterize=False,
+        store_extra_policy_info=False,
+        deterministic=False,
+        rollout_random=False,
+        model_train_freq=250,
+        num_networks=7,
+        num_elites=5,
+        model_retain_epochs=20,
+        rollout_batch_size=100e3,
+        real_ratio=0.1,
+        # rollout_schedule=[20,100,1,1],
+        rollout_length=1,
+        hidden_dim=200,
+        max_model_t=None,
+        model_type="mlp",
+        separate_mean_var=False,
+        identity_terminal=0,
+        pool_load_path="",
+        pool_load_max_size=0,
+        model_name=None,
+        model_load_dir=None,
+        penalty_coeff=0.0,
+        penalty_learned_var=False,
+        **kwargs,
     ):
         """
         Args:
@@ -108,17 +105,31 @@ class MOPO(RLAlgorithm):
 
         super(MOPO, self).__init__(**kwargs)
 
-        obs_dim = np.prod(training_environment.active_observation_shape)
+        obs_dim = np.prod(
+            training_environment.active_observation_shape
+        )  # pode trocar só pos observation shape
         act_dim = np.prod(training_environment.action_space.shape)
         self._model_type = model_type
         self._identity_terminal = identity_terminal
-        self._model = construct_model(obs_dim=obs_dim, act_dim=act_dim, hidden_dim=hidden_dim,
-                                      num_networks=num_networks, num_elites=num_elites,
-                                      model_type=model_type, separate_mean_var=separate_mean_var,
-                                      name=model_name, load_dir=model_load_dir, deterministic=deterministic)
+        self._model = construct_model(
+            obs_dim=obs_dim,
+            act_dim=act_dim,
+            hidden_dim=hidden_dim,
+            num_networks=num_networks,
+            num_elites=num_elites,
+            model_type=model_type,
+            separate_mean_var=separate_mean_var,
+            name=model_name,
+            load_dir=model_load_dir,
+            deterministic=deterministic,
+        )
         self._static_fns = static_fns
-        self.fake_env = FakeEnv(self._model, self._static_fns, penalty_coeff=penalty_coeff,
-                                penalty_learned_var=penalty_learned_var)
+        self.fake_env = FakeEnv(
+            self._model,
+            self._static_fns,
+            penalty_coeff=penalty_coeff,
+            penalty_learned_var=penalty_learned_var,
+        )
 
         self._rollout_schedule = [20, 100, rollout_length, rollout_length]
         self._max_model_t = max_model_t
@@ -151,9 +162,10 @@ class MOPO(RLAlgorithm):
         self._reward_scale = reward_scale
         self._target_entropy = (
             -np.prod(self._training_environment.action_space.shape)
-            if target_entropy == 'auto'
-            else target_entropy)
-        print('[ MOPO ] Target entropy: {}'.format(self._target_entropy))
+            if target_entropy == "auto"
+            else target_entropy
+        )
+        print("[ MOPO ] Target entropy: {}".format(self._target_entropy))
 
         self._discount = discount
         self._tau = tau
@@ -163,7 +175,9 @@ class MOPO(RLAlgorithm):
         self._reparameterize = reparameterize
         self._store_extra_policy_info = store_extra_policy_info
 
-        observation_shape = self._training_environment.active_observation_shape
+        observation_shape = (
+            self._training_environment.active_observation_shape
+        )  # pode trocar só pos observation shape
         action_shape = self._training_environment.action_space.shape
 
         assert len(observation_shape) == 1, observation_shape
@@ -177,9 +191,14 @@ class MOPO(RLAlgorithm):
         self._pool_load_path = pool_load_path
         self._pool_load_max_size = pool_load_max_size
 
-        loader.restore_pool(self._pool, self._pool_load_path, self._pool_load_max_size, save_path=self._log_dir)
+        loader.restore_pool(
+            self._pool,
+            self._pool_load_path,
+            self._pool_load_max_size,
+            save_path=self._log_dir,
+        )
         self._init_pool_size = self._pool.size
-        print('[ MOPO ] Starting with pool size: {}'.format(self._init_pool_size))
+        print("[ MOPO ] Starting with pool size: {}".format(self._init_pool_size))
         ####
 
     def _build(self):
@@ -191,7 +210,7 @@ class MOPO(RLAlgorithm):
         self._init_critic_update()
 
     def _train(self):
-        
+
         """Return a generator that performs RL training.
 
         Args:
@@ -213,75 +232,93 @@ class MOPO(RLAlgorithm):
         self.sampler.initialize(training_environment, policy, pool)
 
         gt.reset_root()
-        gt.rename_root('RLAlgorithm')
+        gt.rename_root("RLAlgorithm")
         gt.set_def_unique(False)
 
         self._training_before_hook()
 
         #### model training
-        print('[ MOPO ] log_dir: {} | ratio: {}'.format(self._log_dir, self._real_ratio))
-        print('[ MOPO ] Training model at epoch {} | freq {} | timestep {} (total: {})'.format(
-            self._epoch, self._model_train_freq, self._timestep, self._total_timestep)
+        print(
+            "[ MOPO ] log_dir: {} | ratio: {}".format(self._log_dir, self._real_ratio)
+        )
+        print(
+            "[ MOPO ] Training model at epoch {} | freq {} | timestep {} (total: {})".format(
+                self._epoch,
+                self._model_train_freq,
+                self._timestep,
+                self._total_timestep,
+            )
         )
 
         max_epochs = 1 if self._model.model_loaded else None
-        model_train_metrics = self._train_model(batch_size=256, max_epochs=max_epochs, holdout_ratio=0.2, max_t=self._max_model_t)
+        model_train_metrics = self._train_model(
+            batch_size=256,
+            max_epochs=max_epochs,
+            holdout_ratio=0.2,
+            max_t=self._max_model_t,
+        )
         model_metrics.update(model_train_metrics)
         self._log_model()
-        gt.stamp('epoch_train_model')
-        #### 
+        gt.stamp("epoch_train_model")
+        ####
 
         for self._epoch in gt.timed_for(range(self._epoch, self._n_epochs)):
 
             self._epoch_before_hook()
-            gt.stamp('epoch_before_hook')
+            gt.stamp("epoch_before_hook")
 
-            self._training_progress = Progress(self._epoch_length * self._n_train_repeat)
+            self._training_progress = Progress(
+                self._epoch_length * self._n_train_repeat
+            )
             start_samples = self.sampler._total_samples
             for timestep in count():
                 self._timestep = timestep
 
-                if (timestep >= self._epoch_length
-                    and self.ready_to_train):
+                if timestep >= self._epoch_length and self.ready_to_train:
                     break
 
                 self._timestep_before_hook()
-                gt.stamp('timestep_before_hook')
+                gt.stamp("timestep_before_hook")
 
                 ## model rollouts
                 if timestep % self._model_train_freq == 0 and self._real_ratio < 1.0:
                     self._training_progress.pause()
                     self._set_rollout_length()
                     self._reallocate_model_pool()
-                    model_rollout_metrics = self._rollout_model(rollout_batch_size=self._rollout_batch_size, deterministic=self._deterministic)
+                    model_rollout_metrics = self._rollout_model(
+                        rollout_batch_size=self._rollout_batch_size,
+                        deterministic=self._deterministic,
+                    )
                     model_metrics.update(model_rollout_metrics)
-                    
-                    gt.stamp('epoch_rollout_model')
+
+                    gt.stamp("epoch_rollout_model")
                     self._training_progress.resume()
 
                 ## train actor and critic
                 if self.ready_to_train:
                     self._do_training_repeats(timestep=timestep)
-                gt.stamp('train')
+                gt.stamp("train")
 
                 self._timestep_after_hook()
-                gt.stamp('timestep_after_hook')
+                gt.stamp("timestep_after_hook")
 
             training_paths = self.sampler.get_last_n_paths(
-                math.ceil(self._epoch_length / self.sampler._max_path_length))
+                math.ceil(self._epoch_length / self.sampler._max_path_length)
+            )
 
-            evaluation_paths = self._evaluation_paths(
-                policy, evaluation_environment)
-            gt.stamp('evaluation_paths')
+            # evaluation_paths = self._evaluation_paths(policy, evaluation_environment)
+            evaluation_paths = None
+            gt.stamp("evaluation_paths")
 
             if evaluation_paths:
                 evaluation_metrics = self._evaluate_rollouts(
-                    evaluation_paths, evaluation_environment)
-                gt.stamp('evaluation_metrics')
+                    evaluation_paths, evaluation_environment
+                )
+                gt.stamp("evaluation_metrics")
             else:
                 evaluation_metrics = {}
 
-            gt.stamp('epoch_after_hook')
+            gt.stamp("epoch_after_hook")
 
             sampler_diagnostics = self.sampler.get_diagnostics()
 
@@ -289,35 +326,41 @@ class MOPO(RLAlgorithm):
                 iteration=self._total_timestep,
                 batch=self._evaluation_batch(),
                 training_paths=training_paths,
-                evaluation_paths=evaluation_paths)
+                evaluation_paths=evaluation_paths,
+            )
 
             time_diagnostics = gt.get_times().stamps.itrs
 
-            diagnostics.update(OrderedDict((
-                *(
-                    (f'evaluation/{key}', evaluation_metrics[key])
-                    for key in sorted(evaluation_metrics.keys())
-                ),
-                *(
-                    (f'times/{key}', time_diagnostics[key][-1])
-                    for key in sorted(time_diagnostics.keys())
-                ),
-                *(
-                    (f'sampler/{key}', sampler_diagnostics[key])
-                    for key in sorted(sampler_diagnostics.keys())
-                ),
-                *(
-                    (f'model/{key}', model_metrics[key])
-                    for key in sorted(model_metrics.keys())
-                ),
-                ('epoch', self._epoch),
-                ('timestep', self._timestep),
-                ('timesteps_total', self._total_timestep),
-                ('train-steps', self._num_train_steps),
-            )))
+            diagnostics.update(
+                OrderedDict(
+                    (
+                        *(
+                            (f"evaluation/{key}", evaluation_metrics[key])
+                            for key in sorted(evaluation_metrics.keys())
+                        ),
+                        *(
+                            (f"times/{key}", time_diagnostics[key][-1])
+                            for key in sorted(time_diagnostics.keys())
+                        ),
+                        *(
+                            (f"sampler/{key}", sampler_diagnostics[key])
+                            for key in sorted(sampler_diagnostics.keys())
+                        ),
+                        *(
+                            (f"model/{key}", model_metrics[key])
+                            for key in sorted(model_metrics.keys())
+                        ),
+                        ("epoch", self._epoch),
+                        ("timestep", self._timestep),
+                        ("timesteps_total", self._total_timestep),
+                        ("train-steps", self._num_train_steps),
+                    )
+                )
+            )
 
             if self._eval_render_mode is not None and hasattr(
-                    evaluation_environment, 'render_rollouts'):
+                evaluation_environment, "render_rollouts"
+            ):
                 training_environment.render_rollouts(evaluation_paths)
 
             ## ensure we did not collect any more data
@@ -331,30 +374,32 @@ class MOPO(RLAlgorithm):
 
         self._training_progress.close()
 
-        yield {'done': True, **diagnostics}
+        yield {"done": True, **diagnostics}
 
     def train(self, *args, **kwargs):
         return self._train(*args, **kwargs)
 
     def _log_policy(self):
-        save_path = os.path.join(self._log_dir, 'models')
+        save_path = os.path.join(self._log_dir, "models")
         filesystem.mkdir(save_path)
         weights = self._policy.get_weights()
-        data = {'policy_weights': weights}
-        full_path = os.path.join(save_path, 'policy_{}.pkl'.format(self._total_timestep))
-        print('Saving policy to: {}'.format(full_path))
-        pickle.dump(data, open(full_path, 'wb'))
+        data = {"policy_weights": weights}
+        full_path = os.path.join(
+            save_path, "policy_{}.pkl".format(self._total_timestep)
+        )
+        print("Saving policy to: {}".format(full_path))
+        pickle.dump(data, open(full_path, "wb"))
 
     def _log_model(self):
-        print('MODEL: {}'.format(self._model_type))
-        if self._model_type == 'identity':
-            print('[ MOPO ] Identity model, skipping save')
+        print("MODEL: {}".format(self._model_type))
+        if self._model_type == "identity":
+            print("[ MOPO ] Identity model, skipping save")
         elif self._model.model_loaded:
-            print('[ MOPO ] Loaded model, skipping save')
+            print("[ MOPO ] Loaded model, skipping save")
         else:
-            save_path = os.path.join(self._log_dir, 'models')
+            save_path = os.path.join(self._log_dir, "models")
             filesystem.mkdir(save_path)
-            print('[ MOPO ] Saving model to: {}'.format(save_path))
+            print("[ MOPO ] Saving model to: {}".format(save_path))
             self._model.save(save_path, self._total_timestep)
 
     def _set_rollout_length(self):
@@ -367,28 +412,41 @@ class MOPO(RLAlgorithm):
             y = dx * (max_length - min_length) + min_length
 
         self._rollout_length = int(y)
-        print('[ Model Length ] Epoch: {} (min: {}, max: {}) | Length: {} (min: {} , max: {})'.format(
-            self._epoch, min_epoch, max_epoch, self._rollout_length, min_length, max_length
-        ))
+        print(
+            "[ Model Length ] Epoch: {} (min: {}, max: {}) | Length: {} (min: {} , max: {})".format(
+                self._epoch,
+                min_epoch,
+                max_epoch,
+                self._rollout_length,
+                min_length,
+                max_length,
+            )
+        )
 
     def _reallocate_model_pool(self):
         obs_space = self._pool._observation_space
         act_space = self._pool._action_space
 
-        rollouts_per_epoch = self._rollout_batch_size * self._epoch_length / self._model_train_freq
+        rollouts_per_epoch = (
+            self._rollout_batch_size * self._epoch_length / self._model_train_freq
+        )
         model_steps_per_epoch = int(self._rollout_length * rollouts_per_epoch)
         new_pool_size = self._model_retain_epochs * model_steps_per_epoch
 
-        if not hasattr(self, '_model_pool'):
-            print('[ MOPO ] Initializing new model pool with size {:.2e}'.format(
-                new_pool_size
-            ))
+        if not hasattr(self, "_model_pool"):
+            print(
+                "[ MOPO ] Initializing new model pool with size {:.2e}".format(
+                    new_pool_size
+                )
+            )
             self._model_pool = SimpleReplayPool(obs_space, act_space, new_pool_size)
-        
+
         elif self._model_pool._max_size != new_pool_size:
-            print('[ MOPO ] Updating model pool | {:.2e} --> {:.2e}'.format(
-                self._model_pool._max_size, new_pool_size
-            ))
+            print(
+                "[ MOPO ] Updating model pool | {:.2e} --> {:.2e}".format(
+                    self._model_pool._max_size, new_pool_size
+                )
+            )
             samples = self._model_pool.return_all_samples()
             new_pool = SimpleReplayPool(obs_space, act_space, new_pool_size)
             new_pool.add_samples(samples)
@@ -396,8 +454,8 @@ class MOPO(RLAlgorithm):
             self._model_pool = new_pool
 
     def _train_model(self, **kwargs):
-        if self._model_type == 'identity':
-            print('[ MOPO ] Identity model, skipping model')
+        if self._model_type == "identity":
+            print("[ MOPO ] Identity model, skipping model")
             model_metrics = {}
         else:
             env_samples = self._pool.return_all_samples()
@@ -406,11 +464,13 @@ class MOPO(RLAlgorithm):
         return model_metrics
 
     def _rollout_model(self, rollout_batch_size, **kwargs):
-        print('[ Model Rollout ] Starting | Epoch: {} | Rollout length: {} | Batch size: {} | Type: {}'.format(
-            self._epoch, self._rollout_length, rollout_batch_size, self._model_type
-        ))
+        print(
+            "[ Model Rollout ] Starting | Epoch: {} | Rollout length: {} | Batch size: {} | Type: {}".format(
+                self._epoch, self._rollout_length, rollout_batch_size, self._model_type
+            )
+        )
         batch = self.sampler.random_batch(rollout_batch_size)
-        obs = batch['observations']
+        obs = batch["observations"]
         steps_added = []
         for i in range(self._rollout_length):
             if not self._rollout_random:
@@ -419,30 +479,48 @@ class MOPO(RLAlgorithm):
                 act_ = self._policy.actions_np(obs)
                 act = np.random.uniform(low=-1, high=1, size=act_.shape)
 
-            if self._model_type == 'identity':
+            if self._model_type == "identity":
                 next_obs = obs
                 rew = np.zeros((len(obs), 1))
-                term = (np.ones((len(obs), 1)) * self._identity_terminal).astype(np.bool)
+                term = (np.ones((len(obs), 1)) * self._identity_terminal).astype(
+                    np.bool
+                )
                 info = {}
             else:
                 next_obs, rew, term, info = self.fake_env.step(obs, act, **kwargs)
             steps_added.append(len(obs))
 
-            samples = {'observations': obs, 'actions': act, 'next_observations': next_obs, 'rewards': rew, 'terminals': term}
+            samples = {
+                "observations": obs,
+                "actions": act,
+                "next_observations": next_obs,
+                "rewards": rew,
+                "terminals": term,
+            }
             self._model_pool.add_samples(samples)
 
             nonterm_mask = ~term.squeeze(-1)
             if nonterm_mask.sum() == 0:
-                print('[ Model Rollout ] Breaking early: {} | {} / {}'.format(i, nonterm_mask.sum(), nonterm_mask.shape))
+                print(
+                    "[ Model Rollout ] Breaking early: {} | {} / {}".format(
+                        i, nonterm_mask.sum(), nonterm_mask.shape
+                    )
+                )
                 break
 
             obs = next_obs[nonterm_mask]
 
         mean_rollout_length = sum(steps_added) / rollout_batch_size
-        rollout_stats = {'mean_rollout_length': mean_rollout_length}
-        print('[ Model Rollout ] Added: {:.1e} | Model pool: {:.1e} (max {:.1e}) | Length: {} | Train rep: {}'.format(
-            sum(steps_added), self._model_pool.size, self._model_pool._max_size, mean_rollout_length, self._n_train_repeat
-        ))
+        rollout_stats = {"mean_rollout_length": mean_rollout_length}
+        print(
+            "[ Model Rollout ] Added: {:.1e} | Model pool: {:.1e} (max {:.1e}) | Length: {} | Train rep: {}".format(
+                sum(steps_added),
+                self._model_pool.size,
+                self._model_pool._max_size,
+                mean_rollout_length,
+                self._n_train_repeat,
+            )
+        )
         return rollout_stats
 
     def _visualize_model(self, env, timestep):
@@ -452,15 +530,19 @@ class MOPO(RLAlgorithm):
         qpos = state[:qpos_dim]
         qvel = state[qpos_dim:]
 
-        print('[ Visualization ] Starting | Epoch {} | Log dir: {}\n'.format(self._epoch, self._log_dir))
+        print(
+            "[ Visualization ] Starting | Epoch {} | Log dir: {}\n".format(
+                self._epoch, self._log_dir
+            )
+        )
         visualize_policy(env, self.fake_env, self._policy, self._writer, timestep)
-        print('[ Visualization ] Done')
+        print("[ Visualization ] Done")
         ## set env state
         env.unwrapped.set_state(qpos, qvel)
 
     def _training_batch(self, batch_size=None):
         batch_size = batch_size or self.sampler._batch_size
-        env_batch_size = int(batch_size*self._real_ratio)
+        env_batch_size = int(batch_size * self._real_ratio)
         model_batch_size = batch_size - env_batch_size
 
         ## can sample from the env pool even if env_batch_size == 0
@@ -471,7 +553,9 @@ class MOPO(RLAlgorithm):
 
             # keys = env_batch.keys()
             keys = set(env_batch.keys()) & set(model_batch.keys())
-            batch = {k: np.concatenate((env_batch[k], model_batch[k]), axis=0) for k in keys}
+            batch = {
+                k: np.concatenate((env_batch[k], model_batch[k]), axis=0) for k in keys
+            }
         else:
             ## if real_ratio == 1.0, no model pool was ever allocated,
             ## so skip the model pool sampling
@@ -480,9 +564,9 @@ class MOPO(RLAlgorithm):
 
     def _init_global_step(self):
         self.global_step = training_util.get_or_create_global_step()
-        self._training_ops.update({
-            'increment_global_step': training_util._increment_global_step(1)
-        })
+        self._training_ops.update(
+            {"increment_global_step": training_util._increment_global_step(1)}
+        )
 
     def _init_placeholders(self):
         """Create input placeholders for the SAC algorithm.
@@ -494,59 +578,57 @@ class MOPO(RLAlgorithm):
             - reward
             - terminals
         """
-        self._iteration_ph = tf.placeholder(
-            tf.int64, shape=None, name='iteration')
+        self._iteration_ph = tf.placeholder(tf.int64, shape=None, name="iteration")
 
         self._observations_ph = tf.placeholder(
             tf.float32,
             shape=(None, *self._observation_shape),
-            name='observation',
+            name="observation",
         )
 
         self._next_observations_ph = tf.placeholder(
             tf.float32,
             shape=(None, *self._observation_shape),
-            name='next_observation',
+            name="next_observation",
         )
 
         self._actions_ph = tf.placeholder(
             tf.float32,
             shape=(None, *self._action_shape),
-            name='actions',
+            name="actions",
         )
 
         self._rewards_ph = tf.placeholder(
             tf.float32,
             shape=(None, 1),
-            name='rewards',
+            name="rewards",
         )
 
         self._terminals_ph = tf.placeholder(
             tf.float32,
             shape=(None, 1),
-            name='terminals',
+            name="terminals",
         )
 
         if self._store_extra_policy_info:
             self._log_pis_ph = tf.placeholder(
                 tf.float32,
                 shape=(None, 1),
-                name='log_pis',
+                name="log_pis",
             )
             self._raw_actions_ph = tf.placeholder(
                 tf.float32,
                 shape=(None, *self._action_shape),
-                name='raw_actions',
+                name="raw_actions",
             )
 
     def _get_Q_target(self):
         next_actions = self._policy.actions([self._next_observations_ph])
-        next_log_pis = self._policy.log_pis(
-            [self._next_observations_ph], next_actions)
+        next_log_pis = self._policy.log_pis([self._next_observations_ph], next_actions)
 
         next_Qs_values = tuple(
-            Q([self._next_observations_ph, next_actions])
-            for Q in self._Q_targets)
+            Q([self._next_observations_ph, next_actions]) for Q in self._Q_targets
+        )
 
         min_next_Q = tf.reduce_min(next_Qs_values, axis=0)
         next_value = min_next_Q - self._alpha * next_log_pis
@@ -554,7 +636,8 @@ class MOPO(RLAlgorithm):
         Q_target = td_target(
             reward=self._reward_scale * self._rewards_ph,
             discount=self._discount,
-            next_value=(1 - self._terminals_ph) * next_value)
+            next_value=(1 - self._terminals_ph) * next_value,
+        )
 
         return Q_target
 
@@ -570,19 +653,22 @@ class MOPO(RLAlgorithm):
         assert Q_target.shape.as_list() == [None, 1]
 
         Q_values = self._Q_values = tuple(
-            Q([self._observations_ph, self._actions_ph])
-            for Q in self._Qs)
+            Q([self._observations_ph, self._actions_ph]) for Q in self._Qs
+        )
 
         Q_losses = self._Q_losses = tuple(
-            tf.losses.mean_squared_error(
-                labels=Q_target, predictions=Q_value, weights=0.5)
-            for Q_value in Q_values)
+            tf.compat.v1.losses.mean_squared_error(
+                labels=Q_target, predictions=Q_value, weights=0.5
+            )
+            for Q_value in Q_values
+        )
 
         self._Q_optimizers = tuple(
             tf.train.AdamOptimizer(
-                learning_rate=self._Q_lr,
-                name='{}_{}_optimizer'.format(Q._name, i)
-            ) for i, Q in enumerate(self._Qs))
+                learning_rate=self._Q_lr, name="{}_{}_optimizer".format(Q._name, i)
+            )
+            for i, Q in enumerate(self._Qs)
+        )
         Q_training_ops = tuple(
             tf.contrib.layers.optimize_loss(
                 Q_loss,
@@ -591,13 +677,18 @@ class MOPO(RLAlgorithm):
                 optimizer=Q_optimizer,
                 variables=Q.trainable_variables,
                 increment_global_step=False,
-                summaries=((
-                    "loss", "gradients", "gradient_norm", "global_gradient_norm"
-                ) if self._tf_summaries else ()))
-            for i, (Q, Q_loss, Q_optimizer)
-            in enumerate(zip(self._Qs, Q_losses, self._Q_optimizers)))
+                summaries=(
+                    ("loss", "gradients", "gradient_norm", "global_gradient_norm")
+                    if self._tf_summaries
+                    else ()
+                ),
+            )
+            for i, (Q, Q_loss, Q_optimizer) in enumerate(
+                zip(self._Qs, Q_losses, self._Q_optimizers)
+            )
+        )
 
-        self._training_ops.update({'Q': tf.group(Q_training_ops)})
+        self._training_ops.update({"Q": tf.group(Q_training_ops)})
 
     def _init_actor_update(self):
         """Create minimization operations for policy and entropy.
@@ -613,44 +704,41 @@ class MOPO(RLAlgorithm):
         assert log_pis.shape.as_list() == [None, 1]
 
         log_alpha = self._log_alpha = tf.get_variable(
-            'log_alpha',
-            dtype=tf.float32,
-            initializer=0.0)
+            "log_alpha", dtype=tf.float32, initializer=0.0
+        )
         alpha = tf.exp(log_alpha)
 
         if isinstance(self._target_entropy, Number):
             alpha_loss = -tf.reduce_mean(
-                log_alpha * tf.stop_gradient(log_pis + self._target_entropy))
+                log_alpha * tf.stop_gradient(log_pis + self._target_entropy)
+            )
 
             self._alpha_optimizer = tf.train.AdamOptimizer(
-                self._policy_lr, name='alpha_optimizer')
+                self._policy_lr, name="alpha_optimizer"
+            )
             self._alpha_train_op = self._alpha_optimizer.minimize(
-                loss=alpha_loss, var_list=[log_alpha])
+                loss=alpha_loss, var_list=[log_alpha]
+            )
 
-            self._training_ops.update({
-                'temperature_alpha': self._alpha_train_op
-            })
+            self._training_ops.update({"temperature_alpha": self._alpha_train_op})
 
         self._alpha = alpha
 
-        if self._action_prior == 'normal':
+        if self._action_prior == "normal":
             policy_prior = tf.contrib.distributions.MultivariateNormalDiag(
-                loc=tf.zeros(self._action_shape),
-                scale_diag=tf.ones(self._action_shape))
+                loc=tf.zeros(self._action_shape), scale_diag=tf.ones(self._action_shape)
+            )
             policy_prior_log_probs = policy_prior.log_prob(actions)
-        elif self._action_prior == 'uniform':
+        elif self._action_prior == "uniform":
             policy_prior_log_probs = 0.0
 
-        Q_log_targets = tuple(
-            Q([self._observations_ph, actions])
-            for Q in self._Qs)
+        Q_log_targets = tuple(Q([self._observations_ph, actions]) for Q in self._Qs)
         min_Q_log_target = tf.reduce_min(Q_log_targets, axis=0)
 
         if self._reparameterize:
             policy_kl_losses = (
-                alpha * log_pis
-                - min_Q_log_target
-                - policy_prior_log_probs)
+                alpha * log_pis - min_Q_log_target - policy_prior_log_probs
+            )
         else:
             raise NotImplementedError
 
@@ -659,8 +747,8 @@ class MOPO(RLAlgorithm):
         policy_loss = tf.reduce_mean(policy_kl_losses)
 
         self._policy_optimizer = tf.train.AdamOptimizer(
-            learning_rate=self._policy_lr,
-            name="policy_optimizer")
+            learning_rate=self._policy_lr, name="policy_optimizer"
+        )
         policy_train_op = tf.contrib.layers.optimize_loss(
             policy_loss,
             self.global_step,
@@ -668,11 +756,12 @@ class MOPO(RLAlgorithm):
             optimizer=self._policy_optimizer,
             variables=self._policy.trainable_variables,
             increment_global_step=False,
-            summaries=(
-                "loss", "gradients", "gradient_norm", "global_gradient_norm"
-            ) if self._tf_summaries else ())
+            summaries=("loss", "gradients", "gradient_norm", "global_gradient_norm")
+            if self._tf_summaries
+            else (),
+        )
 
-        self._training_ops.update({'policy_train_op': policy_train_op})
+        self._training_ops.update({"policy_train_op": policy_train_op})
 
     def _init_training(self):
         self._update_target(tau=1.0)
@@ -683,10 +772,12 @@ class MOPO(RLAlgorithm):
         for Q, Q_target in zip(self._Qs, self._Q_targets):
             source_params = Q.get_weights()
             target_params = Q_target.get_weights()
-            Q_target.set_weights([
-                tau * source + (1.0 - tau) * target
-                for source, target in zip(source_params, target_params)
-            ])
+            Q_target.set_weights(
+                [
+                    tau * source + (1.0 - tau) * target
+                    for source, target in zip(source_params, target_params)
+                ]
+            )
 
     def _do_training(self, iteration, batch):
         """Runs the operations for updating training and target ops."""
@@ -706,27 +797,23 @@ class MOPO(RLAlgorithm):
         """Construct TensorFlow feed_dict from sample batch."""
 
         feed_dict = {
-            self._observations_ph: batch['observations'],
-            self._actions_ph: batch['actions'],
-            self._next_observations_ph: batch['next_observations'],
-            self._rewards_ph: batch['rewards'],
-            self._terminals_ph: batch['terminals'],
+            self._observations_ph: batch["observations"],
+            self._actions_ph: batch["actions"],
+            self._next_observations_ph: batch["next_observations"],
+            self._rewards_ph: batch["rewards"],
+            self._terminals_ph: batch["terminals"],
         }
 
         if self._store_extra_policy_info:
-            feed_dict[self._log_pis_ph] = batch['log_pis']
-            feed_dict[self._raw_actions_ph] = batch['raw_actions']
+            feed_dict[self._log_pis_ph] = batch["log_pis"]
+            feed_dict[self._raw_actions_ph] = batch["raw_actions"]
 
         if iteration is not None:
             feed_dict[self._iteration_ph] = iteration
 
         return feed_dict
 
-    def get_diagnostics(self,
-                        iteration,
-                        batch,
-                        training_paths,
-                        evaluation_paths):
+    def get_diagnostics(self, iteration, batch, training_paths, evaluation_paths):
         """Return diagnostic information as ordered dictionary.
 
         Records mean and standard deviation of Q-function and state
@@ -739,25 +826,22 @@ class MOPO(RLAlgorithm):
         feed_dict = self._get_feed_dict(iteration, batch)
 
         (Q_values, Q_losses, alpha, global_step) = self._session.run(
-            (self._Q_values,
-             self._Q_losses,
-             self._alpha,
-             self.global_step),
-            feed_dict)
+            (self._Q_values, self._Q_losses, self._alpha, self.global_step), feed_dict
+        )
 
-        diagnostics = OrderedDict({
-            'Q-avg': np.mean(Q_values),
-            'Q-std': np.std(Q_values),
-            'Q_loss': np.mean(Q_losses),
-            'alpha': alpha,
-        })
+        diagnostics = OrderedDict(
+            {
+                "Q-avg": np.mean(Q_values),
+                "Q-std": np.std(Q_values),
+                "Q_loss": np.mean(Q_losses),
+                "alpha": alpha,
+            }
+        )
 
-        policy_diagnostics = self._policy.get_diagnostics(
-            batch['observations'])
-        diagnostics.update({
-            f'policy/{key}': value
-            for key, value in policy_diagnostics.items()
-        })
+        policy_diagnostics = self._policy.get_diagnostics(batch["observations"])
+        diagnostics.update(
+            {f"policy/{key}": value for key, value in policy_diagnostics.items()}
+        )
 
         if self._plotter:
             self._plotter.draw()
@@ -767,15 +851,15 @@ class MOPO(RLAlgorithm):
     @property
     def tf_saveables(self):
         saveables = {
-            '_policy_optimizer': self._policy_optimizer,
+            "_policy_optimizer": self._policy_optimizer,
             **{
-                f'Q_optimizer_{i}': optimizer
+                f"Q_optimizer_{i}": optimizer
                 for i, optimizer in enumerate(self._Q_optimizers)
             },
-            '_log_alpha': self._log_alpha,
+            "_log_alpha": self._log_alpha,
         }
 
-        if hasattr(self, '_alpha_optimizer'):
-            saveables['_alpha_optimizer'] = self._alpha_optimizer
+        if hasattr(self, "_alpha_optimizer"):
+            saveables["_alpha_optimizer"] = self._alpha_optimizer
 
         return saveables

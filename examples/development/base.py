@@ -294,9 +294,9 @@ def get_variant_spec_base(universe, domain, task, policy, algorithm, env_params)
     return variant_spec
 
 def get_variant_spec(args, env_params):
-    universe, domain, task = env_params.universe, env_params.domain, env_params.task
+    universe, domain, task = env_params.universe, env_params.domain, env_params.task # for the halfcheetah_mixed the universe is gym, the domain is halfcheetah, and the task is medium-replay-v0
     variant_spec = get_variant_spec_base(
-        universe, domain, task, args.policy, env_params.type, env_params)
+        universe, domain, task, args.policy, env_params.type, env_params) # Get all the parameters regarding algorithm and environment
 
     if args.checkpoint_replay_pool is not None:
         variant_spec['run_params']['checkpoint_replay_pool'] = (

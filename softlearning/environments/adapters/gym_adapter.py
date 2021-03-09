@@ -4,7 +4,8 @@ import numpy as np
 import copy
 import gym
 from gym import spaces, wrappers
-import d4rl
+
+# import d4rl
 
 from .softlearning_env import SoftlearningEnv
 from softlearning.environments.gym import register_environments
@@ -13,9 +14,9 @@ from collections import defaultdict, OrderedDict
 
 
 def parse_domain_task(gym_id):
-    domain_task_parts = gym_id.split('-')
-    domain = '-'.join(domain_task_parts[:1])
-    task = '-'.join(domain_task_parts[1:])
+    domain_task_parts = gym_id.split("-")
+    domain = "-".join(domain_task_parts[:1])
+    task = "-".join(domain_task_parts[1:])
 
     return domain, task
 
@@ -39,23 +40,24 @@ for gym_id in GYM_ENVIRONMENT_IDS:
 
 GYM_ENVIRONMENTS = dict(GYM_ENVIRONMENTS)
 
-DEFAULT_OBSERVATION_KEY = 'observations'
+DEFAULT_OBSERVATION_KEY = "observations"
 
 
 class GymAdapter(SoftlearningEnv):
     """Adapter that implements the SoftlearningEnv for Gym envs."""
 
-    def __init__(self,
-                 domain,
-                 task,
-                 *args,
-                 env=None,
-                 normalize=True,
-                 observation_keys=None,
-                 unwrap_time_limit=True,
-                 **kwargs):
-        assert not args, (
-            "Gym environments don't support args. Use kwargs instead.")
+    def __init__(
+        self,
+        domain,
+        task,
+        *args,
+        env=None,
+        normalize=True,
+        observation_keys=None,
+        unwrap_time_limit=True,
+        **kwargs,
+    ):
+        assert not args, "Gym environments don't support args. Use kwargs instead."
 
         self.normalize = normalize
         self.observation_keys = observation_keys
@@ -65,7 +67,7 @@ class GymAdapter(SoftlearningEnv):
         super(GymAdapter, self).__init__(domain, task, *args, **kwargs)
 
         if env is None:
-            assert (domain is not None and task is not None), (domain, task)
+            assert domain is not None and task is not None, (domain, task)
             env_id = f"{domain}-{task}"
             env = gym.envs.make(env_id, **kwargs)
         else:
@@ -85,19 +87,22 @@ class GymAdapter(SoftlearningEnv):
 
         if isinstance(self._env.observation_space, spaces.Dict):
             dict_observation_space = self._env.observation_space
-            self.observation_keys = (
-                observation_keys or (*self._env.observation_space.spaces.keys(), ))
+            self.observation_keys = observation_keys or (
+                *self._env.observation_space.spaces.keys(),
+            )
         elif isinstance(self._env.observation_space, spaces.Box):
-            dict_observation_space = spaces.Dict(OrderedDict((
-                (DEFAULT_OBSERVATION_KEY, self._env.observation_space),
-            )))
-            self.observation_keys = (DEFAULT_OBSERVATION_KEY, )
+            dict_observation_space = spaces.Dict(
+                OrderedDict(((DEFAULT_OBSERVATION_KEY, self._env.observation_space),))
+            )
+            self.observation_keys = (DEFAULT_OBSERVATION_KEY,)
 
-        self._observation_space = type(dict_observation_space)([
-            (name, copy.deepcopy(space))
-            for name, space in dict_observation_space.spaces.items()
-            if name in self.observation_keys
-        ])
+        self._observation_space = type(dict_observation_space)(
+            [
+                (name, copy.deepcopy(space))
+                for name, space in dict_observation_space.spaces.items()
+                if name in self.observation_keys
+            ]
+        )
 
     @property
     def observation_space(self):
@@ -112,15 +117,16 @@ class GymAdapter(SoftlearningEnv):
         if not isinstance(self.observation_space, spaces.Dict):
             return super(GymAdapter, self).active_observation_shape
 
-        observation_keys = (
-            self.observation_keys
-            or list(self.observation_space.spaces.keys()))
+        observation_keys = self.observation_keys or list(
+            self.observation_space.spaces.keys()
+        )
 
         active_size = sum(
             np.prod(self.observation_space.spaces[key].shape)
-            for key in observation_keys)
+            for key in observation_keys
+        )
 
-        active_observation_shape = (active_size, )
+        active_observation_shape = (active_size,)
 
         return active_observation_shape
 
@@ -130,13 +136,13 @@ class GymAdapter(SoftlearningEnv):
         if not isinstance(self.observation_space, spaces.Dict):
             return observation
 
-        observation_keys = (
-            self.observation_keys
-            or list(self.observation_space.spaces.keys()))
+        observation_keys = self.observation_keys or list(
+            self.observation_space.spaces.keys()
+        )
 
-        observation = np.concatenate([
-            observation[key] for key in observation_keys
-        ], axis=-1)
+        observation = np.concatenate(
+            [observation[key] for key in observation_keys], axis=-1
+        )
 
         return observation
 
@@ -146,12 +152,12 @@ class GymAdapter(SoftlearningEnv):
         if len(action_space.shape) > 1:
             raise NotImplementedError(
                 "Action space ({}) is not flat, make sure to check the"
-                " implemenation.".format(action_space))
+                " implemenation.".format(action_space)
+            )
         return action_space
 
     def step(self, action, *args, **kwargs):
-        observation, reward, terminal, info = self._env.step(
-            action, *args, **kwargs)
+        observation, reward, terminal, info = self._env.step(action, *args, **kwargs)
 
         if not isinstance(self._env.observation_space, spaces.Dict):
             observation = {DEFAULT_OBSERVATION_KEY: observation}

@@ -18,16 +18,16 @@ def get_trainable_class(*args, **kwargs):
 
 def get_params_from_file(filepath, params_name='params'):
 	import importlib
-	from dotmap import DotMap
-	module = importlib.import_module(filepath)
-	params = getattr(module, params_name)
-	params = DotMap(params)
+	from dotmap import DotMap #Lets you call dicts as if their keys are variables in an object
+	module = importlib.import_module(filepath) # import the module specifically for the configuration file (don't know why, maybe treat it as an object?)
+	params = getattr(module, params_name) # get the "params" attribute from the configuration file (basically everything)
+	params = DotMap(params) # make the params dict into this pseudo-object thing
 	return params
 
 def get_variant_spec(command_line_args, *args, **kwargs):
-    from .base import get_variant_spec
+    from .base import get_variant_spec # another function with same name, but from the base.py in this same folder
     import importlib
-    params = get_params_from_file(command_line_args.config)
+    params = get_params_from_file(command_line_args.config) # get the parameters from the config variable in the command line arguments
     # import pdb	
     # pdb.set_trace()
     variant_spec = get_variant_spec(command_line_args, *args, params, **kwargs)
@@ -36,4 +36,5 @@ def get_variant_spec(command_line_args, *args, **kwargs):
 def get_parser():
     from examples.utils import get_parser
     parser = get_parser()
+    # print("parser")
     return parser

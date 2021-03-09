@@ -22,15 +22,17 @@ import pdb
 
 import ray
 from ray import tune
-from ray.autoscaler.commands import exec_cluster
+from ray.autoscaler._private.commands import exec_cluster
 
 from softlearning.misc.utils import datetimestamp, PROJECT_PATH
 
 
 AUTOSCALER_DEFAULT_CONFIG_FILE_GCE = os.path.join(
-    PROJECT_PATH, 'config', 'ray-autoscaler-gce.yaml')
+    PROJECT_PATH, "config", "ray-autoscaler-gce.yaml"
+)
 AUTOSCALER_DEFAULT_CONFIG_FILE_EC2 = os.path.join(
-    PROJECT_PATH, 'config', 'ray-autoscaler-ec2.yaml')
+    PROJECT_PATH, "config", "ray-autoscaler-ec2.yaml"
+)
 
 
 def _normalize_trial_resources(resources, cpu, gpu, extra_cpu, extra_gpu):
@@ -38,64 +40,69 @@ def _normalize_trial_resources(resources, cpu, gpu, extra_cpu, extra_gpu):
         resources = {}
 
     if cpu is not None:
-        resources['cpu'] = cpu
+        resources["cpu"] = cpu
 
     if gpu is not None:
-        resources['gpu'] = gpu
+        resources["gpu"] = gpu
 
     if extra_cpu is not None:
-        resources['extra_cpu'] = extra_cpu
+        resources["extra_cpu"] = extra_cpu
 
     if extra_gpu is not None:
-        resources['extra_gpu'] = extra_gpu
+        resources["extra_gpu"] = extra_gpu
 
     return resources
 
 
 def add_command_line_args_to_variant_spec(variant_spec, command_line_args):
-    variant_spec['run_params'].update({
-        'checkpoint_frequency': (
-            command_line_args.checkpoint_frequency
-            if command_line_args.checkpoint_frequency is not None
-            else variant_spec['run_params'].get('checkpoint_frequency', 0)
-        ),
-        'checkpoint_at_end': (
-            command_line_args.checkpoint_at_end
-            if command_line_args.checkpoint_at_end is not None
-            else variant_spec['run_params'].get('checkpoint_at_end', True)
-        ),
-    })
+    variant_spec["run_params"].update(
+        {
+            "checkpoint_frequency": (
+                command_line_args.checkpoint_frequency
+                if command_line_args.checkpoint_frequency is not None
+                else variant_spec["run_params"].get("checkpoint_frequency", 0)
+            ),
+            "checkpoint_at_end": (
+                command_line_args.checkpoint_at_end
+                if command_line_args.checkpoint_at_end is not None
+                else variant_spec["run_params"].get("checkpoint_at_end", True)
+            ),
+        }
+    )
 
-    variant_spec['restore'] = command_line_args.restore
+    variant_spec["restore"] = command_line_args.restore
 
     return variant_spec
 
 
 def generate_experiment(trainable_class, variant_spec, command_line_args):
-    params = variant_spec.get('algorithm_params')
-    local_dir = os.path.join(params.get('log_dir'), params.get('domain'))
+    params = variant_spec.get("algorithm_params")
+    local_dir = os.path.join(params.get("log_dir"), params.get("domain"))
     resources_per_trial = _normalize_trial_resources(
         command_line_args.resources_per_trial,
         command_line_args.trial_cpus,
         command_line_args.trial_gpus,
         command_line_args.trial_extra_cpus,
-        command_line_args.trial_extra_gpus)
+        command_line_args.trial_extra_gpus,
+    )
 
-    experiment_id = params.get('exp_name')
+    experiment_id = params.get("exp_name")
 
     #### add pool_load_max_size to experiment_id
-    if 'pool_load_max_size' in variant_spec['algorithm_params']['kwargs']:
-        max_size = variant_spec['algorithm_params']['kwargs']['pool_load_max_size']
-        experiment_id = '{}_{}e3'.format(experiment_id, int(max_size/1000))
+    if "pool_load_max_size" in variant_spec["algorithm_params"]["kwargs"]:
+        max_size = variant_spec["algorithm_params"]["kwargs"]["pool_load_max_size"]
+        experiment_id = "{}_{}e3".format(experiment_id, int(max_size / 1000))
     ####
 
     variant_spec = add_command_line_args_to_variant_spec(
-        variant_spec, command_line_args)
+        variant_spec, command_line_args
+    )
 
     if command_line_args.video_save_frequency is not None:
-        assert 'algorithm_params' in variant_spec
-        variant_spec['algorithm_params']['kwargs']['video_save_frequency'] = (
-            command_line_args.video_save_frequency)
+        assert "algorithm_params" in variant_spec
+        variant_spec["algorithm_params"]["kwargs"][
+            "video_save_frequency"
+        ] = command_line_args.video_save_frequency
 
     def create_trial_name_creator(trial_name_template=None):
         if not trial_name_template:
@@ -107,19 +114,18 @@ def generate_experiment(trainable_class, variant_spec, command_line_args):
         return tune.function(trial_name_creator)
 
     experiment = {
-        'run': trainable_class,
-        'resources_per_trial': resources_per_trial,
-        'config': variant_spec,
-        'local_dir': local_dir,
-        'num_samples': command_line_args.num_samples,
-        'upload_dir': command_line_args.upload_dir,
-        'checkpoint_freq': (
-            variant_spec['run_params']['checkpoint_frequency']),
-        'checkpoint_at_end': (
-            variant_spec['run_params']['checkpoint_at_end']),
-        'trial_name_creator': create_trial_name_creator(
-            command_line_args.trial_name_template),
-        'restore': command_line_args.restore,  # Defaults to None
+        "run": trainable_class,
+        "resources_per_trial": resources_per_trial,
+        "config": variant_spec,
+        "local_dir": local_dir,
+        "num_samples": command_line_args.num_samples,
+        "upload_dir": command_line_args.upload_dir,
+        "checkpoint_freq": (variant_spec["run_params"]["checkpoint_frequency"]),
+        "checkpoint_at_end": (variant_spec["run_params"]["checkpoint_at_end"]),
+        "trial_name_creator": create_trial_name_creator(
+            command_line_args.trial_name_template
+        ),
+        "restore": command_line_args.restore,  # Defaults to None
     }
 
     return experiment_id, experiment
@@ -127,10 +133,10 @@ def generate_experiment(trainable_class, variant_spec, command_line_args):
 
 def unique_cluster_name(args):
     cluster_name_parts = (
-        datetimestamp(''),
+        datetimestamp(""),
         str(uuid.uuid4())[:6],
         args.domain,
-        args.task
+        args.task,
     )
     cluster_name = "-".join(cluster_name_parts).lower()
     return cluster_name
@@ -138,10 +144,14 @@ def unique_cluster_name(args):
 
 def get_experiments_info(experiments):
     number_of_trials = {
-        experiment_id: len(list(
-            tune.suggest.variant_generator.generate_variants(
-                experiment_spec['config'])
-        )) * experiment_spec['num_samples']
+        experiment_id: len(
+            list(
+                tune.suggest.variant_generator.generate_variants(
+                    experiment_spec["config"]
+                )
+            )
+        )
+        * experiment_spec["num_samples"]
         for experiment_id, experiment_spec in experiments.items()
     }
     total_number_of_trials = sum(number_of_trials.values())
@@ -156,8 +166,8 @@ def get_experiments_info(experiments):
 
 def confirm_yes_no(prompt):
     # raw_input returns the empty string for "enter"
-    yes = {'yes', 'ye', 'y'}
-    no = {'no', 'n'}
+    yes = {"yes", "ye", "y"}
+    no = {"no", "n"}
 
     choice = input(prompt).lower()
     while True:
@@ -178,8 +188,15 @@ def run_example_dry(example_module_name, example_argv):
     variant_spec = example_module.get_variant_spec(example_args)
     trainable_class = example_module.get_trainable_class(example_args)
 
+    # import json
+
+    # with open("configs.json", "w") as f:
+    #     json.dump(example_args, f)
+    #     json.dump(variant_spec, f)
+
     experiment_id, experiment = generate_experiment(
-        trainable_class, variant_spec, example_args)
+        trainable_class, variant_spec, example_args
+    )
 
     experiments = {experiment_id: experiment}
 
@@ -204,29 +221,53 @@ Number of total trials (including samples/seeds): {total_number_of_trials}
 
 def run_example_local(example_module_name, example_argv, local_mode=False):
     """Run example locally, potentially parallelizing across cpus/gpus."""
-    example_module = importlib.import_module(example_module_name)
+    example_module = importlib.import_module(
+        example_module_name
+    )  # import a specific module
 
-    example_args = example_module.get_parser().parse_args(example_argv)
+    example_args = example_module.get_parser().parse_args(
+        example_argv
+    )  # Get new arguments from inside examples/utils that include resource allocations, policy definitions, remote or local modes
     variant_spec = example_module.get_variant_spec(example_args)
     trainable_class = example_module.get_trainable_class(example_args)
 
+    # variant_spec["environment_params"]["evaluation"] = {"type": "evalData"}
+    # variant_spec["replay_pool_params"]["kwargs"]["max_size"] = 1000000
+    # variant_spec["run_params"]["seed"] = None
+    import json
+
+    with open("custom_config.json") as f:
+        config = json.load(f)
+
+    variant_spec = config
+
     experiment_id, experiment = generate_experiment(
-        trainable_class, variant_spec, example_args)
+        trainable_class, variant_spec, example_args
+    )
     experiments = {experiment_id: experiment}
+
+    # import json
+
+    # # with open("example_args", "w") as f:
+    # #     json.dump(example_args, f)
+    # with open("variant_spec", "w") as f:
+    #     json.dump(variant_spec, f)
 
     ray.init(
         num_cpus=example_args.cpus,
         num_gpus=example_args.gpus,
         resources=example_args.resources or {},
         local_mode=local_mode,
-        include_webui=example_args.include_webui,
-        temp_dir=example_args.temp_dir)
+        # include_webui=example_args.include_webui,
+        # temp_dir=example_args.temp_dir,
+    )
 
     tune.run_experiments(
         experiments,
-        with_server=example_args.with_server,
+        # with_server=example_args.with_server,
         server_port=4321,
-        scheduler=None)
+        scheduler=None,
+    )
 
 
 def run_example_debug(example_module_name, example_argv):
@@ -243,10 +284,10 @@ def run_example_debug(example_module_name, example_argv):
 
     debug_example_argv = []
     for option in example_argv:
-        if '--trial-cpus' in option:
+        if "--trial-cpus" in option:
             available_cpus = multiprocessing.cpu_count()
-            debug_example_argv.append(f'--trial-cpus={available_cpus}')
-        elif '--upload-dir' in option:
+            debug_example_argv.append(f"--trial-cpus={available_cpus}")
+        elif "--upload-dir" in option:
             print(f"Ignoring {option} due to debug mode.")
             continue
         else:
@@ -268,10 +309,11 @@ def run_example_cluster(example_module_name, example_argv):
     trainable_class = example_module.get_trainable_class(example_args)
 
     experiment_id, experiment = generate_experiment(
-        trainable_class, variant_spec, example_args)
+        trainable_class, variant_spec, example_args
+    )
     experiments = {experiment_id: experiment}
 
-    redis_address = ray.services.get_node_ip_address() + ':6379'
+    redis_address = ray.services.get_node_ip_address() + ":6379"
 
     ray.init(
         redis_address=redis_address,
@@ -279,25 +321,29 @@ def run_example_cluster(example_module_name, example_argv):
         num_gpus=example_args.gpus,
         local_mode=False,
         include_webui=example_args.include_webui,
-        temp_dir=example_args.temp_dir)
+        temp_dir=example_args.temp_dir,
+    )
 
     tune.run_experiments(
         experiments,
         with_server=example_args.with_server,
         server_port=4321,
         scheduler=None,
-        queue_trials=True)
+        queue_trials=True,
+    )
 
 
-def launch_example_cluster(example_module_name,
-                           example_argv,
-                           config_file,
-                           screen,
-                           tmux,
-                           stop,
-                           start,
-                           override_cluster_name,
-                           port_forward):
+def launch_example_cluster(
+    example_module_name,
+    example_argv,
+    config_file,
+    screen,
+    tmux,
+    stop,
+    start,
+    override_cluster_name,
+    port_forward,
+):
     """Launches the example on autoscaled ray cluster through ray exec_cmd.
 
     This handles basic validation and sanity checks for the experiment, and
@@ -312,29 +358,31 @@ def launch_example_cluster(example_module_name,
     trainable_class = example_module.get_trainable_class(example_args)
 
     experiment_id, experiment = generate_experiment(
-        trainable_class, variant_spec, example_args)
+        trainable_class, variant_spec, example_args
+    )
     experiments = {experiment_id: experiment}
 
     experiments_info = get_experiments_info(experiments)
-    total_number_of_trials = experiments_info['total_number_of_trials']
+    total_number_of_trials = experiments_info["total_number_of_trials"]
 
     if not example_args.upload_dir:
         confirm_yes_no(
             "`upload_dir` is empty. No results will be uploaded to cloud"
             " storage. Use `--upload-dir` argument to set upload dir."
-            " Continue without upload directory?\n(yes/no) ")
+            " Continue without upload directory?\n(yes/no) "
+        )
 
     confirm_yes_no(f"Launch {total_number_of_trials} trials?\n(yes/no) ")
 
-    override_cluster_name = override_cluster_name or unique_cluster_name(
-        example_args)
+    override_cluster_name = override_cluster_name or unique_cluster_name(example_args)
 
     cluster_command_parts = (
-        'softlearning',
-        'run_example_cluster',
+        "softlearning",
+        "run_example_cluster",
         example_module_name,
-        *example_argv)
-    cluster_command = ' '.join(cluster_command_parts)
+        *example_argv,
+    )
+    cluster_command = " ".join(cluster_command_parts)
 
     return exec_cluster(
         config_file=config_file,
@@ -345,7 +393,8 @@ def launch_example_cluster(example_module_name,
         stop=stop,
         start=start,
         override_cluster_name=override_cluster_name,
-        port_forward=port_forward)
+        port_forward=port_forward,
+    )
 
 
 def launch_example_gce(*args, config_file, **kwargs):
@@ -357,13 +406,9 @@ def launch_example_gce(*args, config_file, **kwargs):
 
     See `launch_example_cluster` for further details.
     """
-    config_file = (
-        config_file or AUTOSCALER_DEFAULT_CONFIG_FILE_GCE)
+    config_file = config_file or AUTOSCALER_DEFAULT_CONFIG_FILE_GCE
 
-    return launch_example_cluster(
-        *args,
-        config_file=config_file,
-        **kwargs)
+    return launch_example_cluster(*args, config_file=config_file, **kwargs)
 
 
 def launch_example_ec2(*args, config_file, **kwargs):
@@ -375,10 +420,6 @@ def launch_example_ec2(*args, config_file, **kwargs):
 
     See `launch_example_cluster` for further details.
     """
-    config_file = (
-        config_file or AUTOSCALER_DEFAULT_CONFIG_FILE_EC2)
+    config_file = config_file or AUTOSCALER_DEFAULT_CONFIG_FILE_EC2
 
-    launch_example_cluster(
-        *args,
-        config_file=config_file,
-        **kwargs)
+    launch_example_cluster(*args, config_file=config_file, **kwargs)

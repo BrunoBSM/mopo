@@ -22,6 +22,7 @@ import mopo.static
 
 class ExperimentRunner(tune.Trainable):
     def _setup(self, variant):
+        print("Here")
         set_seed(variant['run_params']['seed'])
 
         self._variant = variant
